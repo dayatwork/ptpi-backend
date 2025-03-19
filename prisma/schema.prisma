@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String      @id
+  name             String
+  email            String
+  emailVerified    Boolean
+  image            String?
+  createdAt        DateTime
+  updatedAt        DateTime
+  twoFactorEnabled Boolean?
+  role             String?
+  banned           Boolean?
+  banReason        String?
+  banExpires       DateTime?
+  sessions         Session[]
+  accounts         Account[]
+  twofactors       TwoFactor[]
+  passkeys         Passkey[]
+
+  @@unique([email])
+  @@index([name])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime
+  updatedAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model TwoFactor {
+  id          String @id
+  secret      String
+  backupCodes String
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([secret])
+  @@map("twoFactor")
+}
+
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime?
+
+  @@index([userId])
+  @@map("passkey")
+}
+
+model Institution {
+  id           String        @id @default(cuid(2))
+  name         String
+  logo         String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  exhibitors   Exhibitor[]
+  sponsorships Sponsorship[]
+
+  @@index([name])
+  @@map("institutions")
+}
+
+model Event {
+  id          String   @id @default(cuid(2))
+  title       String
+  description String   @default("")
+  thumbnail   String?
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  location    String   @default("")
+  format      String
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([title])
+  @@index([startDate])
+  @@index([status])
+  @@index([format])
+  @@map("events")
+}
+
+model Seminar {
+  id           String               @id @default(cuid(2))
+  eventId      String?              @map("event_id")
+  title        String
+  description  String               @default("")
+  thumbnail    String?
+  format       String
+  pricingType  String               @map("pricing_type")
+  location     String               @default("")
+  startDate    DateTime             @map("start_date")
+  endDate      DateTime             @map("end_date")
+  status       String               @default("DRAFT")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  participants SeminarParticipant[]
+
+  @@index([eventId])
+  @@index([title])
+  @@index([format])
+  @@index([startDate])
+  @@index([status])
+  @@map("seminars")
+}
+
+model SeminarParticipant {
+  id            String    @id @default(cuid(2))
+  userId        String    @map("user_id")
+  seminar       Seminar   @relation(fields: [seminarId], references: [id])
+  seminarId     String    @map("seminar_id")
+  status        String
+  paymentStatus String    @map("payment_status")
+  registeredAt  DateTime  @default(now()) @map("registered_at")
+  paidAt        DateTime? @map("paid_at")
+  certificate   String?
+
+  @@unique([seminarId, userId])
+  @@index([seminarId, status])
+  @@index([userId])
+  @@map("seminar_participants")
+}
+
+model Exhibition {
+  id          String      @id @default(cuid(2))
+  eventId     String?     @map("event_id")
+  title       String
+  description String      @default("")
+  thumbnail   String?
+  format      String
+  pricingType String      @map("pricing_type")
+  location    String      @default("")
+  startDate   DateTime    @map("start_date")
+  endDate     DateTime    @map("end_date")
+  status      String      @default("DRAFT")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  visitors    Visitor[]
+  exhibitors  Exhibitor[]
+
+  @@index([eventId])
+  @@index([title])
+  @@index([format])
+  @@index([startDate])
+  @@index([status])
+  @@map("exhibitions")
+}
+
+model Visitor {
+  id            String     @id @default(cuid(2))
+  userId        String     @map("user_id")
+  exhibition    Exhibition @relation(fields: [exhibitionId], references: [id])
+  exhibitionId  String     @map("exhibition_id")
+  status        String
+  paymentStatus String     @map("payment_status")
+  registeredAt  DateTime   @default(now()) @map("registered_at")
+  paidAt        DateTime?  @map("paid_at")
+
+  @@unique([exhibitionId, userId])
+  @@index([exhibitionId, status])
+  @@index([userId])
+  @@map("exhibition_visitors")
+}
+
+model Exhibitor {
+  id            String      @id @default(cuid(2))
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  institutionId String      @map("institution_id")
+  exhibition    Exhibition  @relation(fields: [exhibitionId], references: [id])
+  exhibitionId  String      @map("exhibition_id")
+  status        String
+  paymentStatus String      @map("payment_status")
+  registeredAt  DateTime    @default(now()) @map("registered_at")
+  paidAt        DateTime?   @map("paid_at")
+  amount        Decimal     @default(0) @db.Decimal(13, 2)
+  totalPaid     Decimal     @default(0) @map("total_paid") @db.Decimal(13, 2)
+
+  @@unique([exhibitionId, institutionId])
+  @@index([exhibitionId])
+  @@index([institutionId])
+  @@map("exhibitors")
+}
+
+model Sponsorship {
+  id            String      @id @default(cuid(2))
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  institutionId String      @map("institution_id")
+  seminarId     String?     @map("seminar_id")
+  exhibitionId  String?     @map("exhibition_id")
+  category      String
+  categorySize  Int         @map("category_size") @db.SmallInt
+  status        String
+  paymentStatus String      @map("payment_status")
+  registeredAt  DateTime    @default(now()) @map("registered_at")
+  paidAt        DateTime?   @map("paid_at")
+  amount        Decimal     @default(0) @db.Decimal(13, 2)
+  totalPaid     Decimal     @default(0) @map("total_paid") @db.Decimal(13, 2)
+
+  @@index([institutionId])
+  @@index([seminarId, status])
+  @@index([exhibitionId, status])
+  @@map("sponsorships")
+}
