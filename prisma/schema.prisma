@@ -173,6 +173,8 @@ model Seminar {
 model SeminarParticipant {
   id            String    @id @default(cuid(2))
   userId        String    @map("user_id")
+  userName      String    @map("user_name")
+  userAvatar    String?   @map("user_avatar")
   seminar       Seminar   @relation(fields: [seminarId], references: [id])
   seminarId     String    @map("seminar_id")
   status        String
@@ -184,6 +186,7 @@ model SeminarParticipant {
   @@unique([seminarId, userId])
   @@index([seminarId, status])
   @@index([userId])
+  @@index([userName])
   @@map("seminar_participants")
 }
 

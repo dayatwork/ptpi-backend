@@ -1,13 +1,29 @@
 import { Hono } from "hono";
 import { requireRole } from "../../auth/middleware/require-role";
 import { prisma } from "../../lib/prisma";
+import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
 
 export const userRoutes = new Hono();
 
-userRoutes.get("/", requireRole("admin"), async (c) => {
-  const users = await prisma.user.findMany();
-  return c.json({ data: users });
+const getUsersQueryParamsSchema = z.object({
+  q: z.string().optional(),
 });
+
+userRoutes.get(
+  "/",
+  zValidator("query", getUsersQueryParamsSchema),
+  requireRole("admin"),
+  async (c) => {
+    const query = c.req.valid("query");
+    const take = query.q ? 10 : undefined;
+    const users = await prisma.user.findMany({
+      where: query.q ? { name: { contains: query.q } } : undefined,
+      take,
+    });
+    return c.json({ data: users });
+  }
+);
 
 userRoutes.get("/:id", requireRole("admin"), async (c) => {
   const id = c.req.param("id");

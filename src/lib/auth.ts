@@ -60,7 +60,6 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      console.log({ url });
       console.log(
         `[BETTER_AUTH]: [RESET_PASSWORD] Hi ${user.email}, click the link to reset your password: ${url}`
       );
