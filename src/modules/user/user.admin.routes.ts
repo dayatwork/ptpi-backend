@@ -4,13 +4,13 @@ import { prisma } from "../../lib/prisma";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-export const userRoutes = new Hono();
+export const userAdminRoutes = new Hono();
 
 const getUsersQueryParamsSchema = z.object({
   q: z.string().optional(),
 });
 
-userRoutes.get(
+userAdminRoutes.get(
   "/",
   zValidator("query", getUsersQueryParamsSchema),
   requireRole("admin"),
@@ -25,7 +25,7 @@ userRoutes.get(
   }
 );
 
-userRoutes.get("/:id", requireRole("admin"), async (c) => {
+userAdminRoutes.get("/:id", requireRole("admin"), async (c) => {
   const id = c.req.param("id");
   const user = await prisma.user.findUnique({
     where: { id },

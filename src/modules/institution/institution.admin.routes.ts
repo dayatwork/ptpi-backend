@@ -4,14 +4,14 @@ import { zValidator } from "@hono/zod-validator";
 import { requireRole } from "../../auth/middleware/require-role";
 import { prisma } from "../../lib/prisma";
 
-export const institutionRoutes = new Hono();
+export const institutionAdminRoutes = new Hono();
 
-institutionRoutes.get("/", requireRole("admin"), async (c) => {
+institutionAdminRoutes.get("/", requireRole("admin"), async (c) => {
   const institutions = await prisma.institution.findMany();
   return c.json({ data: institutions });
 });
 
-institutionRoutes.get("/:id", requireRole("admin"), async (c) => {
+institutionAdminRoutes.get("/:id", requireRole("admin"), async (c) => {
   const id = c.req.param("id");
   const institution = await prisma.institution.findUnique({
     where: { id },
@@ -27,7 +27,7 @@ const createInstitutionSchema = z.object({
   logo: z.string().url().optional(),
 });
 
-institutionRoutes.post(
+institutionAdminRoutes.post(
   "/",
   zValidator("json", createInstitutionSchema),
   requireRole("admin"),
@@ -43,7 +43,7 @@ const editInstitutionSchema = z.object({
   logo: z.string().url().optional(),
 });
 
-institutionRoutes.put(
+institutionAdminRoutes.put(
   "/:id",
   zValidator("json", editInstitutionSchema),
   requireRole("admin"),
@@ -57,7 +57,7 @@ institutionRoutes.put(
   }
 );
 
-institutionRoutes.delete("/:id", async (c) => {
+institutionAdminRoutes.delete("/:id", requireRole("admin"), async (c) => {
   const institution = await prisma.institution.delete({
     where: { id: c.req.param("id") },
   });

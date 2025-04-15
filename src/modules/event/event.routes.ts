@@ -1,148 +1,115 @@
 import { Hono } from "hono";
-import { requireRole } from "../../auth/middleware/require-role";
+import { requireAuth } from "../../auth/middleware/require-auth";
 import { prisma } from "../../lib/prisma";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
+import { EVENT_STATUS } from "./event";
+import { SEMINAR_STATUS } from "../seminar/seminar";
 
 export const eventRoutes = new Hono();
 
-eventRoutes.get("/", requireRole("admin"), async (c) => {
-  const events = await prisma.event.findMany();
-  return c.json({ data: events });
+eventRoutes.get("/upcoming", requireAuth, async (c) => {
+  const events = await prisma.event.findMany({
+    where: {
+      status: EVENT_STATUS.SCHEDULED,
+    },
+  });
+  const eventIds = events.map((event) => event.id);
+  const seminarsWithEvent = await prisma.seminar.findMany({
+    where: {
+      eventId: { in: eventIds },
+      status: { notIn: [SEMINAR_STATUS.DRAFT, SEMINAR_STATUS.CANCELED] },
+    },
+    select: { eventId: true },
+    distinct: ["eventId"],
+  });
+  const eventIdsWithSeminar = seminarsWithEvent.map(
+    (seminar) => seminar.eventId ?? ""
+  );
+
+  return c.json({
+    data: events.map((event) => {
+      const activities: string[] = [];
+      if (eventIdsWithSeminar.includes(event.id)) {
+        activities.push("seminar");
+      }
+      return { ...event, activities };
+    }),
+  });
 });
 
-eventRoutes.get("/:id", requireRole("admin"), async (c) => {
-  const id = c.req.param("id");
+eventRoutes.get("/previous", requireAuth, async (c) => {
+  const events = await prisma.event.findMany({
+    where: {
+      status: EVENT_STATUS.DONE,
+    },
+  });
+  const eventIds = events.map((event) => event.id);
+  const seminarsWithEvent = await prisma.seminar.findMany({
+    where: {
+      eventId: { in: eventIds },
+      status: { notIn: [SEMINAR_STATUS.DRAFT, SEMINAR_STATUS.CANCELED] },
+    },
+    select: { eventId: true },
+    distinct: ["eventId"],
+  });
+  const eventIdsWithSeminar = seminarsWithEvent.map(
+    (seminar) => seminar.eventId ?? ""
+  );
 
-  const event = await prisma.event.findUnique({ where: { id } });
+  return c.json({
+    data: events.map((event) => {
+      const activities: string[] = [];
+      if (eventIdsWithSeminar.includes(event.id)) {
+        activities.push("seminar");
+      }
+      return { ...event, activities };
+    }),
+  });
+});
+
+eventRoutes.get("/ongoing", requireAuth, async (c) => {
+  const events = await prisma.event.findMany({
+    where: {
+      status: EVENT_STATUS.ONGOING,
+    },
+  });
+  const eventIds = events.map((event) => event.id);
+  const seminarsWithEvent = await prisma.seminar.findMany({
+    where: {
+      eventId: { in: eventIds },
+      status: { notIn: [SEMINAR_STATUS.DRAFT, SEMINAR_STATUS.CANCELED] },
+    },
+    select: { eventId: true },
+    distinct: ["eventId"],
+  });
+  const eventIdsWithSeminar = seminarsWithEvent.map(
+    (seminar) => seminar.eventId ?? ""
+  );
+
+  return c.json({
+    data: events.map((event) => {
+      const activities: string[] = [];
+      if (eventIdsWithSeminar.includes(event.id)) {
+        activities.push("seminar");
+      }
+      return { ...event, activities };
+    }),
+  });
+});
+
+eventRoutes.get("/:id", requireAuth, async (c) => {
+  const event = await prisma.event.findUnique({
+    where: { id: c.req.param("id"), status: { notIn: [EVENT_STATUS.DRAFT] } },
+  });
+
   if (!event) {
     return c.json({ message: "Event not found" }, 404);
   }
 
-  const [seminars, exhibitions] = await Promise.all([
-    prisma.seminar.findMany({ where: { eventId: event.id } }),
-    prisma.exhibition.findMany({ where: { eventId: event.id } }),
+  const [seminars] = await Promise.all([
+    prisma.seminar.findMany({
+      where: { eventId: event.id, status: { notIn: [SEMINAR_STATUS.DRAFT] } },
+    }),
   ]);
 
-  const data = {
-    ...event,
-    seminars,
-    exhibitions,
-  };
-
-  return c.json({ data });
+  return c.json({ data: { ...event, seminars } });
 });
-
-const createEventSchema = z.object({
-  title: z.string().nonempty(),
-  description: z.string().optional(),
-  thumbnail: z.string().optional(),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-  location: z.string().optional(),
-  format: z.enum(["ONLINE", "OFFLINE", "HYBRID"]),
-});
-
-eventRoutes.post(
-  "/",
-  zValidator("json", createEventSchema),
-  requireRole("admin"),
-  async (c) => {
-    const data = c.req.valid("json");
-    const event = await prisma.event.create({ data });
-    return c.json({ data: event }, 201);
-  }
-);
-
-const editEventSchema = z.object({
-  title: z.string().nonempty(),
-  description: z.string().optional(),
-  thumbnail: z.string().optional(),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-  location: z.string().optional(),
-  format: z.enum(["ONLINE", "OFFLINE", "HYBRID"]),
-});
-
-eventRoutes.put(
-  "/:id",
-  zValidator("json", editEventSchema),
-  requireRole("admin"),
-  async (c) => {
-    const id = c.req.param("id");
-    const data = c.req.valid("json");
-    const event = await prisma.event.update({ where: { id }, data });
-    return c.json({ data: event }, 200);
-  }
-);
-
-eventRoutes.post("/:id/start", requireRole("admin"), async (c) => {
-  const id = c.req.param("id");
-  const event = await prisma.event.update({
-    where: { id },
-    data: { status: "ONGOING" },
-  });
-  return c.json({ data: event }, 200);
-});
-
-eventRoutes.post("/:id/cancel", requireRole("admin"), async (c) => {
-  const id = c.req.param("id");
-  const event = await prisma.event.update({
-    where: { id },
-    data: { status: "CANCELED" },
-  });
-  return c.json({ data: event }, 200);
-});
-
-eventRoutes.post("/:id/complete", requireRole("admin"), async (c) => {
-  const id = c.req.param("id");
-  const event = await prisma.event.update({
-    where: { id },
-    data: { status: "DONE" },
-  });
-  return c.json({ data: event }, 200);
-});
-
-eventRoutes.delete("/:id", requireRole("admin"), async (c) => {
-  const id = c.req.param("id");
-  const event = await prisma.event.delete({
-    where: { id },
-  });
-  return c.json({ data: event }, 200);
-});
-
-eventRoutes.get("/:id/activities", requireRole("admin"), async (c) => {
-  const id = c.req.param("id");
-  const [seminars, exhibitions] = await Promise.all([
-    prisma.seminar.findMany({ where: { eventId: id } }),
-    prisma.exhibition.findMany({ where: { eventId: id } }),
-  ]);
-
-  return c.json({ data: { seminars, exhibitions } });
-});
-
-const createEventSeminarSchema = z.object({
-  title: z.string().nonempty(),
-  description: z.string().optional(),
-  thumbnail: z.string().optional(),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-  location: z.string().optional(),
-  format: z.enum(["ONLINE", "OFFLINE", "HYBRID"]),
-  pricingType: z.enum(["PAID", "FREE"]),
-});
-
-eventRoutes.post(
-  "/:id/seminars",
-  zValidator("json", createEventSeminarSchema),
-  requireRole("admin"),
-  async (c) => {
-    const id = c.req.param("id");
-    const data = c.req.valid("json");
-    const seminar = await prisma.seminar.create({
-      data: { ...data, eventId: id },
-    });
-
-    return c.json({ data: seminar }, 201);
-  }
-);

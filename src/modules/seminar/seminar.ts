@@ -9,16 +9,6 @@ export const SEMINAR_FORMAT = {
 export const validFormats = Object.values(SEMINAR_FORMAT);
 export type ValidFormat = (typeof validFormats)[number];
 
-// ==========================
-// == SEMINAR PRICING TYPE ==
-// ==========================
-export const SEMINAR_PRICING_TYPE = {
-  PAID: "PAID",
-  FREE: "FREE",
-} as const;
-export const validPricingTypes = Object.values(SEMINAR_PRICING_TYPE);
-export type ValidPricingType = (typeof validPricingTypes)[number];
-
 // ====================
 // == SEMINAR STATUS ==
 // ====================

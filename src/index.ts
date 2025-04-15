@@ -2,10 +2,14 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { auth } from "./lib/auth";
 import { requireAuth } from "./auth/middleware/require-auth";
-import { userRoutes } from "./modules/user/user.routes";
-import { institutionRoutes } from "./modules/institution/institution.routes";
+import { userAdminRoutes } from "./modules/user/user.admin.routes";
+import { institutionAdminRoutes } from "./modules/institution/institution.admin.routes";
+import { eventAdminRoutes } from "./modules/event/event.admin.routes";
+import { seminarAdminRoutes } from "./modules/seminar/seminar.admin.routes";
+import { livekitAdminRoutes } from "./modules/livekit/livekit.admin.routes";
 import { eventRoutes } from "./modules/event/event.routes";
 import { seminarRoutes } from "./modules/seminar/seminar.routes";
+import { seminarParticipantsRoutes } from "./modules/seminar/seminar-participant.routes";
 
 export type AppVariables = {
   user: typeof auth.$Infer.Session.user | null;
@@ -52,10 +56,17 @@ app.use(
   })
 );
 
-app.route("/api/users", userRoutes);
-app.route("/api/institutions", institutionRoutes);
+// Admin Routes
+app.route("/api/admin/users", userAdminRoutes);
+app.route("/api/admin/institutions", institutionAdminRoutes);
+app.route("/api/admin/events", eventAdminRoutes);
+app.route("/api/admin/seminars", seminarAdminRoutes);
+app.route("/api/admin/livekit", livekitAdminRoutes);
+
+// Non-admin routes
 app.route("/api/events", eventRoutes);
 app.route("/api/seminars", seminarRoutes);
+app.route("/api/seminar-participants", seminarParticipantsRoutes);
 
 app.get("/", requireAuth, (c) => {
   return c.text("OK");
