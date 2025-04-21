@@ -31,14 +31,26 @@ seminarRoutes.get("/ongoing", requireAuth, async (c) => {
 });
 
 seminarRoutes.get("/:id", requireAuth, async (c) => {
-  const seminar = await prisma.seminar.findUnique({
-    where: { id: c.req.param("id"), status: { notIn: [SEMINAR_STATUS.DRAFT] } },
-    include: { participants: true },
-  });
+  const seminarId = c.req.param("id");
+  const user = c.var.user;
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const [seminar, participant] = await Promise.all([
+    prisma.seminar.findUnique({
+      where: { id: seminarId, status: { notIn: [SEMINAR_STATUS.DRAFT] } },
+      include: { participants: true },
+    }),
+    prisma.seminarParticipant.findUnique({
+      where: { seminarId_userId: { seminarId, userId: user.id } },
+    }),
+  ]);
+
   if (!seminar) {
     return c.json({ message: "Seminar not found" }, 404);
   }
-  return c.json({ data: seminar });
+  return c.json({ data: { ...seminar, participant } });
 });
 
 seminarRoutes.post("/:id/register", requireAuth, async (c) => {

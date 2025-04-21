@@ -10,6 +10,7 @@ import { livekitAdminRoutes } from "./modules/livekit/livekit.admin.routes";
 import { eventRoutes } from "./modules/event/event.routes";
 import { seminarRoutes } from "./modules/seminar/seminar.routes";
 import { seminarParticipantsRoutes } from "./modules/seminar/seminar-participant.routes";
+import { livekitRoutes } from "./modules/livekit/livekit.routes";
 
 export type AppVariables = {
   user: typeof auth.$Infer.Session.user | null;
@@ -67,6 +68,7 @@ app.route("/api/admin/livekit", livekitAdminRoutes);
 app.route("/api/events", eventRoutes);
 app.route("/api/seminars", seminarRoutes);
 app.route("/api/seminar-participants", seminarParticipantsRoutes);
+app.route("/api/livekit", livekitRoutes);
 
 app.get("/", requireAuth, (c) => {
   return c.text("OK");

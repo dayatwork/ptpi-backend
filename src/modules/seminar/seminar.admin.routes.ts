@@ -14,7 +14,9 @@ import { createRoom, deleteRoom } from "../livekit/livekit.admin.routes";
 export const seminarAdminRoutes = new Hono();
 
 seminarAdminRoutes.get("/", requireRole("admin"), async (c) => {
-  const seminars = await prisma.seminar.findMany();
+  const seminars = await prisma.seminar.findMany({
+    orderBy: { createdAt: "desc" },
+  });
   return c.json({ data: seminars });
 });
 

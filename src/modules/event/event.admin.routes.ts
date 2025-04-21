@@ -20,8 +20,14 @@ eventAdminRoutes.get("/:id", requireRole("admin"), async (c) => {
   }
 
   const [seminars, exhibitions] = await Promise.all([
-    prisma.seminar.findMany({ where: { eventId: event.id } }),
-    prisma.exhibition.findMany({ where: { eventId: event.id } }),
+    prisma.seminar.findMany({
+      where: { eventId: event.id },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.exhibition.findMany({
+      where: { eventId: event.id },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   const data = {
