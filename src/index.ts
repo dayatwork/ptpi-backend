@@ -11,6 +11,7 @@ import { eventRoutes } from "./modules/event/event.routes";
 import { seminarRoutes } from "./modules/seminar/seminar.routes";
 import { seminarParticipantsRoutes } from "./modules/seminar/seminar-participant.routes";
 import { livekitRoutes } from "./modules/livekit/livekit.routes";
+import { consultationAdminRoutes } from "./modules/consultation/consultation.admin.routes";
 
 export type AppVariables = {
   user: typeof auth.$Infer.Session.user | null;
@@ -62,6 +63,7 @@ app.route("/api/admin/users", userAdminRoutes);
 app.route("/api/admin/institutions", institutionAdminRoutes);
 app.route("/api/admin/events", eventAdminRoutes);
 app.route("/api/admin/seminars", seminarAdminRoutes);
+app.route("/api/admin/consultations", consultationAdminRoutes);
 app.route("/api/admin/livekit", livekitAdminRoutes);
 
 // Non-admin routes

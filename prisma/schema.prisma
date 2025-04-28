@@ -114,13 +114,14 @@ model Passkey {
 }
 
 model Institution {
-  id           String        @id @default(cuid(2))
-  name         String
-  logo         String?
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  exhibitors   Exhibitor[]
-  sponsorships Sponsorship[]
+  id            String         @id @default(cuid(2))
+  name          String
+  logo          String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  exhibitors    Exhibitor[]
+  sponsorships  Sponsorship[]
+  consultations Consultation[]
 
   @@index([name])
   @@map("institutions")
@@ -272,4 +273,33 @@ model Sponsorship {
   @@index([seminarId, status])
   @@index([exhibitionId, status])
   @@map("sponsorships")
+}
+
+model Consultation {
+  id          String             @id @default(cuid(2))
+  eventId     String             @map("event_id")
+  exhibitor   Institution        @relation(fields: [exhibitorId], references: [id])
+  exhibitorId String             @map("exhibitor_id")
+  maxSlot     Int?               @map("max_slot")
+  slots       ConsultationSlot[]
+
+  @@unique([eventId, exhibitorId])
+  @@index([eventId])
+  @@index([exhibitorId])
+  @@map("consultations")
+}
+
+model ConsultationSlot {
+  id              String       @id @default(cuid(2))
+  consultation    Consultation @relation(fields: [consultationId], references: [id])
+  consultationId  String       @map("consultation_id")
+  participantId   String?      @map("participant_id")
+  participantName String?      @map("participant_name")
+  startTime       DateTime     @map("start_time")
+  endTime         DateTime     @map("end_time")
+  status          String
+
+  @@index([consultationId])
+  @@index([participantId])
+  @@map("consultation_slots")
 }

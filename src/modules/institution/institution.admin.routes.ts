@@ -6,10 +6,24 @@ import { prisma } from "../../lib/prisma";
 
 export const institutionAdminRoutes = new Hono();
 
-institutionAdminRoutes.get("/", requireRole("admin"), async (c) => {
-  const institutions = await prisma.institution.findMany();
-  return c.json({ data: institutions });
+const getInstitutionsQueryParamsSchema = z.object({
+  q: z.string().optional(),
 });
+
+institutionAdminRoutes.get(
+  "/",
+  zValidator("query", getInstitutionsQueryParamsSchema),
+  requireRole("admin"),
+  async (c) => {
+    const query = c.req.valid("query");
+    const take = query.q ? 10 : undefined;
+    const institutions = await prisma.institution.findMany({
+      where: query.q ? { name: { contains: query.q } } : undefined,
+      take,
+    });
+    return c.json({ data: institutions });
+  }
+);
 
 institutionAdminRoutes.get("/:id", requireRole("admin"), async (c) => {
   const id = c.req.param("id");

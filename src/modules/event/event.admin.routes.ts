@@ -19,7 +19,7 @@ eventAdminRoutes.get("/:id", requireRole("admin"), async (c) => {
     return c.json({ message: "Event not found" }, 404);
   }
 
-  const [seminars, exhibitions] = await Promise.all([
+  const [seminars, exhibitions, consultations] = await Promise.all([
     prisma.seminar.findMany({
       where: { eventId: event.id },
       orderBy: { createdAt: "desc" },
@@ -28,12 +28,17 @@ eventAdminRoutes.get("/:id", requireRole("admin"), async (c) => {
       where: { eventId: event.id },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.consultation.findMany({
+      where: { eventId: event.id },
+      include: { exhibitor: true },
+    }),
   ]);
 
   const data = {
     ...event,
     seminars,
     exhibitions,
+    consultations,
   };
 
   return c.json({ data });
