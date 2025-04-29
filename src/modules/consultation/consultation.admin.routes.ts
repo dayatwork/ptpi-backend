@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireRole } from "../../auth/middleware/require-role";
 import { prisma } from "../../lib/prisma";
 import { CONSULTATION_SLOT_STATUS } from "./consultation";
+import { createRoom, deleteRoom } from "../livekit/livekit.admin.routes";
 
 export const consultationAdminRoutes = new Hono();
 
@@ -142,6 +143,56 @@ consultationAdminRoutes.post(
       where: { id: params.slotId, consultationId: params.id },
       data: { status: CONSULTATION_SLOT_STATUS.CANCELED },
     });
+    return c.json({ data: slot });
+  }
+);
+
+consultationAdminRoutes.post(
+  "/:id/slots/:slotId/start",
+  requireRole("admin"),
+  async (c) => {
+    const params = c.req.param();
+    const slot = await prisma.consultationSlot.findUnique({
+      where: { id: params.slotId, consultationId: params.id },
+    });
+    if (!slot) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    if (!slot.participantId) {
+      return c.json({
+        message: "Can't start consultation if no participant booked",
+      });
+    }
+    await prisma.consultationSlot.update({
+      where: { id: params.slotId, consultationId: params.id },
+      data: { status: CONSULTATION_SLOT_STATUS.ONGOING },
+    });
+    await createRoom({ roomName: slot.id });
+    return c.json({ data: slot });
+  }
+);
+
+consultationAdminRoutes.post(
+  "/:id/slots/:slotId/end",
+  requireRole("admin"),
+  async (c) => {
+    const params = c.req.param();
+    const slot = await prisma.consultationSlot.findUnique({
+      where: { id: params.slotId, consultationId: params.id },
+    });
+    if (!slot) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    if (slot.status !== CONSULTATION_SLOT_STATUS.ONGOING) {
+      return c.json({
+        message: "Consultations have not yet started",
+      });
+    }
+    await prisma.consultationSlot.update({
+      where: { id: params.slotId, consultationId: params.id },
+      data: { status: CONSULTATION_SLOT_STATUS.DONE },
+    });
+    await deleteRoom({ roomName: slot.id });
     return c.json({ data: slot });
   }
 );
