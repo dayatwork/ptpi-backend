@@ -105,11 +105,22 @@ eventRoutes.get("/:id", requireAuth, async (c) => {
     return c.json({ message: "Event not found" }, 404);
   }
 
-  const [seminars] = await Promise.all([
+  const [seminars, consultations] = await Promise.all([
     prisma.seminar.findMany({
       where: { eventId: event.id, status: { notIn: [SEMINAR_STATUS.DRAFT] } },
     }),
+    prisma.consultation.findMany({
+      where: { eventId: event.id },
+      select: {
+        id: true,
+        exhibitor: { select: { id: true, name: true, logo: true } },
+        slots: {
+          select: { id: true, startTime: true, endTime: true, status: true },
+          orderBy: { startTime: "asc" },
+        },
+      },
+    }),
   ]);
 
-  return c.json({ data: { ...event, seminars } });
+  return c.json({ data: { ...event, seminars, consultations } });
 });

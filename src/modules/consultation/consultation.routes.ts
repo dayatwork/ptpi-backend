@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { CONSULTATION_SLOT_STATUS } from "./consultation";
+import { EVENT_STATUS } from "../event/event";
 
 export const consultationRoutes = new Hono();
 
@@ -39,8 +40,6 @@ consultationRoutes.get("/schedules", requireAuth, async (c) => {
 });
 
 const bookConsultationSchema = z.object({
-  eventId: z.string(),
-  exhibitorId: z.string(),
   slotId: z.string(),
 });
 
@@ -54,26 +53,54 @@ consultationRoutes.post(
       return c.json({ message: "Unauthorized" }, 401);
     }
 
-    const slot = await prisma.$transaction(async (tx) => {
-      const { eventId, exhibitorId, slotId } = c.req.valid("json");
-      const consultation = await tx.consultation.findUnique({
-        where: { eventId_exhibitorId: { eventId, exhibitorId } },
-      });
-      if (!consultation) {
-        throw new Error(
-          "Exhibitor not available for consultation in this event"
-        );
-      }
-      const slot = await tx.consultationSlot.findUnique({
-        where: { id: slotId, consultationId: consultation.id },
-      });
-      if (!slot || slot.status !== CONSULTATION_SLOT_STATUS.AVAILABLE) {
-        throw new Error("Consultation slot is not available");
-      }
-      return slot;
-    });
+    try {
+      const slot = await prisma.$transaction(async (tx) => {
+        const { slotId } = c.req.valid("json");
 
-    return c.json({ data: slot });
+        const slot = await tx.consultationSlot.findUnique({
+          where: { id: slotId },
+          include: { consultation: true },
+        });
+
+        if (!slot || slot.status !== CONSULTATION_SLOT_STATUS.AVAILABLE) {
+          throw new Error("Consultation slot is not available");
+        }
+
+        const event = await tx.event.findUnique({
+          where: { id: slot.consultation.eventId },
+        });
+
+        if (event) {
+          if (
+            event.status !== EVENT_STATUS.SCHEDULED &&
+            event.status !== EVENT_STATUS.ONGOING
+          ) {
+            throw new Error(
+              "Can't book consultation slot. The event has finished"
+            );
+          }
+        }
+
+        const bookedSlot = await tx.consultationSlot.update({
+          where: { id: slotId },
+          data: {
+            status: CONSULTATION_SLOT_STATUS.BOOKED,
+            participantId: user.id,
+            participantName: user.name,
+          },
+        });
+
+        return bookedSlot;
+      });
+
+      return c.json({ data: slot });
+    } catch (error) {
+      let errorMessage = "Something went wrong";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      return c.json({ message: errorMessage });
+    }
   }
 );
 
